@@ -68,25 +68,34 @@ if FileExist(ArquivoMemoria) {
 TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
-; INTERFACE 1: RELÓGIO VERDE (Clicável com Esquerdo e Direito)
+; INTERFACE 1: RELÓGIO VERDE (Com Hitbox Melhorada)
 ; ==============================================================================
 GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow") 
-GuiVerde.BackColor := "101010"
+GuiVerde.BackColor := "101010" ; Essa cor será a "transparente" (invisível)
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
 
-; Texto 1: O Relógio
-TextoVerde := GuiVerde.Add("Text", "c00FF00 Right w80", TextoInicial)
-TextoVerde.OnEvent("Click", MostrarMenu)       ; Botão Esquerdo
-TextoVerde.OnEvent("ContextMenu", MostrarMenu) ; Botão Direito (Nova linha)
+; 1. O RETÂNGULO "INVISÍVEL" (HITBOX)
+; Colocamos ele primeiro (camada de fundo). 
+; Usamos a cor 121212 (quase preto), diferente do 101010, para ele ser "sólido" pro mouse.
+FundoHitbox := GuiVerde.Add("Text", "x0 y0 w115 h45 Background121212")
+FundoHitbox.OnEvent("Click", MostrarMenu)
+FundoHitbox.OnEvent("ContextMenu", MostrarMenu)
 
-; Texto 2: O Símbolo de Menu (≡)
-TextoMenu := GuiVerde.Add("Text", "xp+80 yp c00FF00 Left w30", "≡")
-TextoMenu.OnEvent("Click", MostrarMenu)       ; Botão Esquerdo
-TextoMenu.OnEvent("ContextMenu", MostrarMenu) ; Botão Direito (Nova linha)
+; 2. O RELÓGIO (Camada da Frente)
+; 'xp yp' significa: desenhe na mesma posição do anterior (em cima do fundo)
+; 'BackgroundTrans' é essencial para ver o fundo preto atrás dos números
+TextoVerde := GuiVerde.Add("Text", "xp yp c00FF00 Right w80 BackgroundTrans", TextoInicial)
+TextoVerde.OnEvent("Click", MostrarMenu)
+TextoVerde.OnEvent("ContextMenu", MostrarMenu)
+
+; 3. O MENU (≡)
+TextoMenu := GuiVerde.Add("Text", "xp+80 yp c00FF00 Left w30 BackgroundTrans", "≡")
+TextoMenu.OnEvent("Click", MostrarMenu)
+TextoMenu.OnEvent("ContextMenu", MostrarMenu)
 
 if (ModoAtual = "Trabalho")
-    GuiVerde.Show("x" X_Verde " y" Y_Verde " NoActivate")
+    GuiVerde.Show("x" X_Verde " y" Y_Verde " w115 h45 NoActivate") ; Forçamos o tamanho da janela
 
 ; ==============================================================================
 ; INTERFACE 2: ALERTA VERMELHO
