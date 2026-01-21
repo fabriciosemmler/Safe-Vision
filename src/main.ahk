@@ -68,23 +68,22 @@ if FileExist(ArquivoMemoria) {
 TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
-; INTERFACE 1: RELÓGIO VERDE (Agora Clicável)
+; INTERFACE 1: RELÓGIO VERDE (Clicável com Esquerdo e Direito)
 ; ==============================================================================
-; REMOVI O "+E0x20" para que o mouse possa clicar na janela
 GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow") 
 GuiVerde.BackColor := "101010"
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
 
-; Texto 1: O Relógio (Alinhado à direita para ficar colado no menu)
+; Texto 1: O Relógio
 TextoVerde := GuiVerde.Add("Text", "c00FF00 Right w80", TextoInicial)
-TextoVerde.OnEvent("Click", MostrarMenu) ; Ao clicar, chama a função do menu
+TextoVerde.OnEvent("Click", MostrarMenu)       ; Botão Esquerdo
+TextoVerde.OnEvent("ContextMenu", MostrarMenu) ; Botão Direito (Nova linha)
 
-; Texto 2: O Símbolo de Menu (Alinhado à esquerda, logo após o relógio)
-; "xp+80" significa: pegue a posição X anterior e some 80 pixels
-; "yp" significa: use a mesma altura Y (mesma linha)
+; Texto 2: O Símbolo de Menu (≡)
 TextoMenu := GuiVerde.Add("Text", "xp+80 yp c00FF00 Left w30", "≡")
-TextoMenu.OnEvent("Click", MostrarMenu)
+TextoMenu.OnEvent("Click", MostrarMenu)       ; Botão Esquerdo
+TextoMenu.OnEvent("ContextMenu", MostrarMenu) ; Botão Direito (Nova linha)
 
 if (ModoAtual = "Trabalho")
     GuiVerde.Show("x" X_Verde " y" Y_Verde " NoActivate")
