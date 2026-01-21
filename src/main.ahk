@@ -3,6 +3,13 @@
 SetWorkingDir A_ScriptDir 
 
 ; ==============================================================================
+; OTIMIZAÇÃO DE PERFORMANCE (A Correção do Lag)
+; ==============================================================================
+SetWinDelay -1      ; Remove delays de manipulação de janela
+SetControlDelay -1  ; Remove delays de controle
+SetBatchLines -1    ; Executa na velocidade máxima (padrão no v2, mas reforçando)
+
+; ==============================================================================
 ; MENU DA BANDEJA (TRAY ICON)
 ; ==============================================================================
 A_IconTip := "Safe Vision - Gerenciador de Pausas"
@@ -16,7 +23,7 @@ A_TrayMenu.Add("Sair", EncerrarApp)
 global MinutosTrabalho := 1
 global MinutosPausa    := 1
 
-global X_Verde := 1625
+global X_Verde := A_ScreenWidth - 150
 global Y_Verde := 30
 
 global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
