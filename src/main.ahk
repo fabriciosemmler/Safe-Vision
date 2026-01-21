@@ -68,13 +68,23 @@ if FileExist(ArquivoMemoria) {
 TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
-; INTERFACE 1: RELÓGIO VERDE
+; INTERFACE 1: RELÓGIO VERDE (Agora Clicável)
 ; ==============================================================================
-GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
+; REMOVI O "+E0x20" para que o mouse possa clicar na janela
+GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow") 
 GuiVerde.BackColor := "101010"
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
-TextoVerde := GuiVerde.Add("Text", "c00FF00 Center w110", TextoInicial) 
+
+; Texto 1: O Relógio (Alinhado à direita para ficar colado no menu)
+TextoVerde := GuiVerde.Add("Text", "c00FF00 Right w80", TextoInicial)
+TextoVerde.OnEvent("Click", MostrarMenu) ; Ao clicar, chama a função do menu
+
+; Texto 2: O Símbolo de Menu (Alinhado à esquerda, logo após o relógio)
+; "xp+80" significa: pegue a posição X anterior e some 80 pixels
+; "yp" significa: use a mesma altura Y (mesma linha)
+TextoMenu := GuiVerde.Add("Text", "xp+80 yp c00FF00 Left w30", "≡")
+TextoMenu.OnEvent("Click", MostrarMenu)
 
 if (ModoAtual = "Trabalho")
     GuiVerde.Show("x" X_Verde " y" Y_Verde " NoActivate")
@@ -224,4 +234,12 @@ AbrirConfiguracoes(*) {
         
         ReiniciarCiclo()    ; 2º: Inicia o novo ciclo (que mostrará sua própria MsgBox limpa)
     }
+
+}
+
+; ==============================================================================
+; FUNÇÃO DE CLIQUE NO RELÓGIO
+; ==============================================================================
+MostrarMenu(*) {
+    A_TrayMenu.Show() ; Exibe o menu da bandeja na posição do mouse
 }
