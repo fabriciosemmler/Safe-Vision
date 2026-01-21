@@ -212,14 +212,16 @@ AbrirConfiguracoes(*) {
         global MinutosTrabalho := Integer(NovoTrab)
         global MinutosPausa    := Integer(NovoPausa)
 
-        ; Salva no arquivo INI (Seção [Config])
+        ; Salva no arquivo INI
         IniWrite(MinutosTrabalho, ArquivoMemoria, "Config", "Trabalho")
         IniWrite(MinutosPausa,    ArquivoMemoria, "Config", "Pausa")
 
-        MsgBox("Configurações salvas!", "Safe Vision", "T2")
-        GuiConfig.Destroy()
+        ; --- A MUDANÇA ESTÁ AQUI ---
+        GuiConfig.Destroy() ; 1º: Fecha a janela IMEDIATAMENTE (sem esperar nada)
         
-        ; Aplica imediatamente reiniciando o ciclo
-        ReiniciarCiclo()
+        ; Removi a MsgBox("Configurações salvas!") porque era redundante.
+        ; O ReiniciarCiclo já vai mostrar que deu tudo certo.
+        
+        ReiniciarCiclo()    ; 2º: Inicia o novo ciclo (que mostrará sua própria MsgBox limpa)
     }
 }
