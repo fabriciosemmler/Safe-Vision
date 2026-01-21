@@ -1,6 +1,6 @@
 # Safe Vision
 
-Uma ferramenta simples escrita em AutoHotkey para proteger sua visão usando uma variação da regra 20-20-20
+Uma ferramenta leve para proteger seus olhos do cansaço digital, automatizando pausas saudáveis recomendadas por oftalmologistas.
 
 ## O Problema
 Quem trabalho com o computador fica horas focado. Como minimizar os efeitos da fadiga ocular?
