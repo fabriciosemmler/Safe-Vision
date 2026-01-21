@@ -3,7 +3,7 @@
 SetWorkingDir A_ScriptDir 
 
 ; ==============================================================================
-; AUTO-ELEVAÇÃO
+; AUTO-ELEVAÇÃO --> Solicita privilégios de administrador (será eliminado na versão final)
 ; ==============================================================================
 if !A_IsAdmin {
     try Run "*RunAs `"" A_ScriptFullPath "`""
