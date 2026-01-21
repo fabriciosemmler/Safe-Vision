@@ -3,23 +3,15 @@
 SetWorkingDir A_ScriptDir 
 
 ; ==============================================================================
-; AUTO-ELEVAÇÃO --> Solicita privilégios de administrador (será eliminado na versão final)
-; ==============================================================================
-if !A_IsAdmin {
-    try Run "*RunAs `"" A_ScriptFullPath "`""
-    ExitApp
-}
-
-; ==============================================================================
 ; CONFIGURAÇÕES
 ; ==============================================================================
-global MinutosTrabalho := 20
-global MinutosPausa    := 2
+global MinutosTrabalho := 1
+global MinutosPausa    := 1
 
 global X_Verde := 1625
 global Y_Verde := 30
 
-global ArquivoMemoria := A_ScriptDir . "\temp_timer_state.ini"
+global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
 
 ; Valores Padrão
 global SegundosRestantes := MinutosTrabalho * 60
@@ -62,6 +54,7 @@ TextoInicial := MinIni . ":" . SecIni
 GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
 GuiVerde.BackColor := "101010"
 GuiVerde.SetFont("s20 bold", "Segoe UI")
+WinSetTransColor("101010", GuiVerde)
 
 ; AQUI ESTÁ O TRUQUE: Usamos 'TextoInicial' em vez de "20:00" fixo
 TextoVerde := GuiVerde.Add("Text", "c00FF00 Center w110", TextoInicial) 
@@ -120,16 +113,12 @@ IniciarPausa() {
     SoundBeep 1000, 1500 
     GuiVerde.Hide()
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
-    if A_IsAdmin
-        BlockInput "On" 
     ModoAtual := "Pausa"
     SegundosRestantes := MinutosPausa * 60
 }
 
 EncerrarPausa() {
     global SegundosRestantes, ModoAtual
-    if A_IsAdmin
-        BlockInput "Off"
     Loop 3 {
         SoundBeep 1500, 200
         Sleep 100

@@ -4,7 +4,7 @@ Thumbs.db
 
 # Ignorar configurações locais do usuário (importante!)
 *.ini
-temp_timer_state.ini
+estado_tempo.ini
 
 # Ignorar executáveis compilados (geramos releases depois)
 *.exe
