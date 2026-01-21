@@ -3,6 +3,14 @@
 SetWorkingDir A_ScriptDir 
 
 ; ==============================================================================
+; MENU DA BANDEJA (TRAY ICON)
+; ==============================================================================
+A_IconTip := "Safe Vision - Gerenciador de Pausas"
+A_TrayMenu.Delete()
+A_TrayMenu.Add("Reiniciar Ciclo", ReiniciarCiclo)
+A_TrayMenu.Add("Sair", EncerrarApp)
+
+; ==============================================================================
 ; CONFIGURAÇÕES
 ; ==============================================================================
 global MinutosTrabalho := 1
@@ -86,11 +94,10 @@ CicloDeTempo() {
     
     SegundosRestantes -= 1
     
-    try {
-        IniWrite SegundosRestantes, ArquivoMemoria, "Estado", "Segundos"
-        IniWrite ModoAtual, ArquivoMemoria, "Estado", "Modo"
-        IniWrite A_Now, ArquivoMemoria, "Estado", "Timestamp"
-    }
+    ; --- MELHORIA: Só salva a cada 60 segundos ou se estiver acabando ---
+    ; Isso elimina o travamento de disco a cada segundo
+    if (Mod(SegundosRestantes, 60) = 0)
+        SalvarEstado()
 
     Min := Format("{:02}", Floor(SegundosRestantes / 60))
     Sec := Format("{:02}", Mod(SegundosRestantes, 60))
@@ -108,6 +115,19 @@ CicloDeTempo() {
     }
 }
 
+; ==============================================================================
+; FUNÇÕES DE CONTROLE E ESTADO
+; ==============================================================================
+
+SalvarEstado(*) { ; O asterisco permite ser chamado pelo OnExit
+    global SegundosRestantes, ModoAtual, ArquivoMemoria
+    try {
+        IniWrite SegundosRestantes, ArquivoMemoria, "Estado", "Segundos"
+        IniWrite ModoAtual, ArquivoMemoria, "Estado", "Modo"
+        IniWrite A_Now, ArquivoMemoria, "Estado", "Timestamp"
+    }
+}
+
 IniciarPausa() {
     global SegundosRestantes, ModoAtual
     SoundBeep 1000, 1500 
@@ -115,6 +135,7 @@ IniciarPausa() {
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
     ModoAtual := "Pausa"
     SegundosRestantes := MinutosPausa * 60
+    SalvarEstado()
 }
 
 EncerrarPausa() {
@@ -127,4 +148,19 @@ EncerrarPausa() {
     GuiVerde.Show("NoActivate")
     ModoAtual := "Trabalho"
     SegundosRestantes := MinutosTrabalho * 60
+    SalvarEstado()
+}
+
+ReiniciarCiclo(*) {
+    global SegundosRestantes, ModoAtual
+    EncerrarPausa()
+    SegundosRestantes := MinutosTrabalho * 60
+    ModoAtual := "Trabalho"
+    SalvarEstado()
+    MsgBox("Ciclo reiniciado!", "Safe Vision", "T3")
+}
+
+EncerrarApp(*) {
+    SalvarEstado()
+    ExitApp
 }
