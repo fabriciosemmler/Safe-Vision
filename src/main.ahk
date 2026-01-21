@@ -13,14 +13,20 @@ SetControlDelay -1  ; Remove delays de controle
 ; ==============================================================================
 A_IconTip := "Safe Vision - Gerenciador de Pausas"
 A_TrayMenu.Delete()
+A_TrayMenu.Add("⚙️ Configurações", AbrirConfiguracoes)
 A_TrayMenu.Add("Reiniciar Ciclo", ReiniciarCiclo)
 A_TrayMenu.Add("Sair", EncerrarApp)
 
 ; ==============================================================================
 ; CONFIGURAÇÕES
 ; ==============================================================================
-global MinutosTrabalho := 1
-global MinutosPausa    := 1
+global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
+; global MinutosTrabalho := 20
+; global MinutosPausa    := 2
+
+; Tenta ler do arquivo. Se não existir, usa 20 e 2.
+global MinutosTrabalho := IniRead(ArquivoMemoria, "Config", "Trabalho", 20)
+global MinutosPausa    := IniRead(ArquivoMemoria, "Config", "Pausa", 2)
 
 global X_Verde := A_ScreenWidth - 150
 global Y_Verde := 30
@@ -168,4 +174,52 @@ ReiniciarCiclo(*) {
 EncerrarApp(*) {
     SalvarEstado()
     ExitApp
+}
+
+; ==============================================================================
+; TELA DE CONFIGURAÇÕES
+; ==============================================================================
+AbrirConfiguracoes(*) {
+    GuiConfig := Gui("+AlwaysOnTop", "Safe Vision Config")
+    GuiConfig.SetFont("s10", "Segoe UI")
+    GuiConfig.BackColor := "White"
+    
+    ; Campo Trabalho
+    GuiConfig.Add("Text", "xm", "⏱️ Trabalho (minutos):")
+    InputTrab := GuiConfig.Add("Edit", "w200 Number", MinutosTrabalho)
+    
+    ; Campo Pausa
+    GuiConfig.Add("Text", "xm y+15", "☕ Pausa (minutos):")
+    InputPausa := GuiConfig.Add("Edit", "w200 Number", MinutosPausa)
+    
+    ; Botão Salvar
+    BtnSalvar := GuiConfig.Add("Button", "xm y+20 w200 h40 Default", "Salvar e Aplicar")
+    BtnSalvar.OnEvent("Click", SalvarPreferencias)
+    
+    GuiConfig.Show()
+
+    ; Função interna para processar o clique
+    SalvarPreferencias(*) {
+        NovoTrab := InputTrab.Value
+        NovoPausa := InputPausa.Value
+
+        if (NovoTrab = "" || NovoPausa = "" || NovoTrab = 0 || NovoPausa = 0) {
+            MsgBox("Por favor, insira valores válidos (maiores que 0).", "Erro", "Icon!")
+            return
+        }
+
+        ; Atualiza as variáveis globais
+        global MinutosTrabalho := Integer(NovoTrab)
+        global MinutosPausa    := Integer(NovoPausa)
+
+        ; Salva no arquivo INI (Seção [Config])
+        IniWrite(MinutosTrabalho, ArquivoMemoria, "Config", "Trabalho")
+        IniWrite(MinutosPausa,    ArquivoMemoria, "Config", "Pausa")
+
+        MsgBox("Configurações salvas!", "Safe Vision", "T2")
+        GuiConfig.Destroy()
+        
+        ; Aplica imediatamente reiniciando o ciclo
+        ReiniciarCiclo()
+    }
 }
