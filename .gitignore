@@ -1,0 +1,13 @@
+# Ignorar arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar configurações locais do usuário (importante!)
+*.ini
+temp_timer_state.ini
+
+# Ignorar executáveis compilados (geramos releases depois)
+*.exe
+
+# Ignorar pastas de IDE (se usar VS Code)
+.vscode/
