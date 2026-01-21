@@ -7,7 +7,6 @@ SetWorkingDir A_ScriptDir
 ; ==============================================================================
 SetWinDelay -1      ; Remove delays de manipulação de janela
 SetControlDelay -1  ; Remove delays de controle
-SetBatchLines -1    ; Executa na velocidade máxima (padrão no v2, mas reforçando)
 
 ; ==============================================================================
 ; MENU DA BANDEJA (TRAY ICON)
@@ -31,6 +30,9 @@ global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
 ; Valores Padrão
 global SegundosRestantes := MinutosTrabalho * 60
 global ModoAtual := "Trabalho" 
+
+; Salva ao sair (Shutdown ou ExitApp)
+OnExit(SalvarEstado)
 
 ; ==============================================================================
 ; CARREGAMENTO DA MEMÓRIA
@@ -56,12 +58,8 @@ if FileExist(ArquivoMemoria) {
     }
 }
 
-; --- CÁLCULO IMEDIATO DO TEXTO (CORREÇÃO DO PULO) ---
-; Formata o tempo AGORA, antes de criar a janela, para não aparecer "20:00" errado
-MinIni := Format("{:02}", Floor(SegundosRestantes / 60))
-SecIni := Format("{:02}", Mod(SegundosRestantes, 60))
-TextoInicial := MinIni . ":" . SecIni
-; ----------------------------------------------------
+; Cálculo inicial do texto
+TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
 ; INTERFACE 1: RELÓGIO VERDE
@@ -70,8 +68,6 @@ GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
 GuiVerde.BackColor := "101010"
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
-
-; AQUI ESTÁ O TRUQUE: Usamos 'TextoInicial' em vez de "20:00" fixo
 TextoVerde := GuiVerde.Add("Text", "c00FF00 Center w110", TextoInicial) 
 
 if (ModoAtual = "Trabalho")
@@ -89,6 +85,8 @@ TextoVermelho := GuiVermelho.Add("Text", "x0 y200 cFF0000 Center w" A_ScreenWidt
 
 if (ModoAtual = "Pausa") {
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
+} else {
+    GuiVermelho.Hide() ; Garante que a janela fullscreen não fique "assombrando" o mouse
 }
 
 ; ==============================================================================
@@ -101,32 +99,36 @@ CicloDeTempo() {
     
     SegundosRestantes -= 1
     
-    ; --- MELHORIA: Só salva a cada 60 segundos ou se estiver acabando ---
-    ; Isso elimina o travamento de disco a cada segundo
     if (Mod(SegundosRestantes, 60) = 0)
         SalvarEstado()
 
-    Min := Format("{:02}", Floor(SegundosRestantes / 60))
-    Sec := Format("{:02}", Mod(SegundosRestantes, 60))
-    TempoFormatado := Min . ":" . Sec
+    TempoFormatado := FormatarTempo(SegundosRestantes)
     
     if (ModoAtual = "Trabalho") {
-        TextoVerde.Value := TempoFormatado
+        ; OTIMIZAÇÃO: Só atualiza o controle se o texto mudou (evita repintura desnecessária)
+        if (TextoVerde.Value != TempoFormatado)
+            TextoVerde.Value := TempoFormatado
+            
         if (SegundosRestantes <= 0)
             IniciarPausa()
     } 
     else {
-        TextoVermelho.Value := TempoFormatado
+        if (TextoVermelho.Value != TempoFormatado)
+            TextoVermelho.Value := TempoFormatado
+            
         if (SegundosRestantes <= 0)
             EncerrarPausa()
     }
 }
 
 ; ==============================================================================
-; FUNÇÕES DE CONTROLE E ESTADO
+; FUNÇÕES AUXILIARES
 ; ==============================================================================
+FormatarTempo(seg) {
+    return Format("{:02}:{:02}", Floor(seg / 60), Mod(seg, 60))
+}
 
-SalvarEstado(*) { ; O asterisco permite ser chamado pelo OnExit
+SalvarEstado(*) {
     global SegundosRestantes, ModoAtual, ArquivoMemoria
     try {
         IniWrite SegundosRestantes, ArquivoMemoria, "Estado", "Segundos"
@@ -137,7 +139,8 @@ SalvarEstado(*) { ; O asterisco permite ser chamado pelo OnExit
 
 IniciarPausa() {
     global SegundosRestantes, ModoAtual
-    SoundBeep 1000, 1500 
+    SalvarEstado()
+    SoundBeep 1000, 500 ; Beep mais curto para não travar
     GuiVerde.Hide()
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
     ModoAtual := "Pausa"
@@ -147,10 +150,8 @@ IniciarPausa() {
 
 EncerrarPausa() {
     global SegundosRestantes, ModoAtual
-    Loop 3 {
-        SoundBeep 1500, 200
-        Sleep 100
-    }
+    ; Removido loop de beeps que podia causar atraso
+    SoundBeep 1500, 300
     GuiVermelho.Hide()
     GuiVerde.Show("NoActivate")
     ModoAtual := "Trabalho"
@@ -161,9 +162,6 @@ EncerrarPausa() {
 ReiniciarCiclo(*) {
     global SegundosRestantes, ModoAtual
     EncerrarPausa()
-    SegundosRestantes := MinutosTrabalho * 60
-    ModoAtual := "Trabalho"
-    SalvarEstado()
     MsgBox("Ciclo reiniciado!", "Safe Vision", "T3")
 }
 
