@@ -23,7 +23,7 @@ Não requer instalação de nenhum software adicional.
 Se você quer estudar ou modificar o código:
 1. Instale o [AutoHotkey v2](https://www.autohotkey.com/).
 2. Clone ou baixe este repositório.
-3. Execute o arquivo `src/eyeguard.ahk`.
+3. Execute o arquivo `src/main.ahk`.
 
 ## Contribuição
 Este é um projeto para aprendizado. Sinta-se à vontade para abrir Issues ou Pull Requests!
