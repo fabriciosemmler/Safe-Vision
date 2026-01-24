@@ -119,24 +119,29 @@ CicloDeTempo() {
     TempoFormatado := FormatarTempo(SegundosRestantes)
     
     if (ModoAtual = "Trabalho") {
-        ; Só atualiza o texto se mudar
         if (TextoVerde.Value != TempoFormatado)
             TextoVerde.Value := TempoFormatado
 
-        ; --- CORREÇÃO DE PRIORIDADE VISUAL ---
-        ; A cada segundo, reforçamos que a janela deve ficar NO TOPO.
-        ; Se alguma outra janela cobriu o relógio, isso o traz de volta.
+        ; Reforço do Verde
         try {
-            GuiVerde.Opt("+AlwaysOnTop") ; Reforça a propriedade
-            WinMoveTop(GuiVerde.Hwnd)    ; Força fisicamente para o topo da pilha
+            GuiVerde.Opt("+AlwaysOnTop")
+            WinMoveTop(GuiVerde.Hwnd)
         }
             
         if (SegundosRestantes <= 0)
             IniciarPausa()
     } 
     else {
+        ; --- MODO PAUSA (Vermelho) ---
         if (TextoVermelho.Value != TempoFormatado)
             TextoVermelho.Value := TempoFormatado
+            
+        ; === CORREÇÃO AQUI ===
+        ; Agora o Vermelho também briga pelo topo a cada segundo
+        try {
+            GuiVermelho.Opt("+AlwaysOnTop")
+            WinMoveTop(GuiVermelho.Hwnd)
+        }
             
         if (SegundosRestantes <= 0)
             EncerrarPausa()
