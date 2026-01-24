@@ -3,10 +3,10 @@
 SetWorkingDir A_ScriptDir 
 
 ; ==============================================================================
-; OTIMIZAÇÃO DE PERFORMANCE (A Correção do Lag)
+; OTIMIZAÇÃO DE PERFORMANCE
 ; ==============================================================================
-SetWinDelay -1      ; Remove delays de manipulação de janela
-SetControlDelay -1  ; Remove delays de controle
+SetWinDelay -1      
+SetControlDelay -1  
 
 ; ==============================================================================
 ; MENU DA BANDEJA (TRAY ICON)
@@ -21,8 +21,6 @@ A_TrayMenu.Add("Sair", EncerrarApp)
 ; CONFIGURAÇÕES
 ; ==============================================================================
 global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
-; global MinutosTrabalho := 20
-; global MinutosPausa    := 2
 
 ; Tenta ler do arquivo. Se não existir, usa 20 e 2.
 global MinutosTrabalho := IniRead(ArquivoMemoria, "Config", "Trabalho", 20)
@@ -30,8 +28,6 @@ global MinutosPausa    := IniRead(ArquivoMemoria, "Config", "Pausa", 2)
 
 global X_Verde := A_ScreenWidth - 150
 global Y_Verde := 30
-
-global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
 
 ; Valores Padrão
 global SegundosRestantes := MinutosTrabalho * 60
@@ -68,23 +64,19 @@ if FileExist(ArquivoMemoria) {
 TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
-; INTERFACE 1: RELÓGIO VERDE (Com Hitbox Melhorada)
+; INTERFACE 1: RELÓGIO VERDE
 ; ==============================================================================
 GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow") 
-GuiVerde.BackColor := "101010" ; Essa cor será a "transparente" (invisível)
+GuiVerde.BackColor := "101010" 
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
 
 ; 1. O RETÂNGULO "INVISÍVEL" (HITBOX)
-; Colocamos ele primeiro (camada de fundo). 
-; Usamos a cor 121212 (quase preto), diferente do 101010, para ele ser "sólido" pro mouse.
 FundoHitbox := GuiVerde.Add("Text", "x0 y0 w115 h45 Background121212")
 FundoHitbox.OnEvent("Click", MostrarMenu)
 FundoHitbox.OnEvent("ContextMenu", MostrarMenu)
 
 ; 2. O RELÓGIO (Camada da Frente)
-; 'xp yp' significa: desenhe na mesma posição do anterior (em cima do fundo)
-; 'BackgroundTrans' é essencial para ver o fundo preto atrás dos números
 TextoVerde := GuiVerde.Add("Text", "xp yp c00FF00 Right w80 BackgroundTrans", TextoInicial)
 TextoVerde.OnEvent("Click", MostrarMenu)
 TextoVerde.OnEvent("ContextMenu", MostrarMenu)
@@ -95,22 +87,20 @@ TextoMenu.OnEvent("Click", MostrarMenu)
 TextoMenu.OnEvent("ContextMenu", MostrarMenu)
 
 if (ModoAtual = "Trabalho")
-    GuiVerde.Show("x" X_Verde " y" Y_Verde " w115 h45 NoActivate") ; Forçamos o tamanho da janela
+    GuiVerde.Show("x" X_Verde " y" Y_Verde " w115 h45 NoActivate") 
 
 ; ==============================================================================
 ; INTERFACE 2: ALERTA VERMELHO
 ; ==============================================================================
 GuiVermelho := Gui("+AlwaysOnTop -Caption +ToolWindow")
 GuiVermelho.BackColor := "000000"
-
 GuiVermelho.SetFont("s100 bold", "Segoe UI")
-; Também usamos o TextoInicial aqui para prevenir glitch no modo pausa
 TextoVermelho := GuiVermelho.Add("Text", "x0 y200 cFF0000 Center w" A_ScreenWidth, TextoInicial)
 
 if (ModoAtual = "Pausa") {
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
 } else {
-    GuiVermelho.Hide() ; Garante que a janela fullscreen não fique "assombrando" o mouse
+    GuiVermelho.Hide() 
 }
 
 ; ==============================================================================
@@ -129,9 +119,17 @@ CicloDeTempo() {
     TempoFormatado := FormatarTempo(SegundosRestantes)
     
     if (ModoAtual = "Trabalho") {
-        ; OTIMIZAÇÃO: Só atualiza o controle se o texto mudou (evita repintura desnecessária)
+        ; Só atualiza o texto se mudar
         if (TextoVerde.Value != TempoFormatado)
             TextoVerde.Value := TempoFormatado
+
+        ; --- CORREÇÃO DE PRIORIDADE VISUAL ---
+        ; A cada segundo, reforçamos que a janela deve ficar NO TOPO.
+        ; Se alguma outra janela cobriu o relógio, isso o traz de volta.
+        try {
+            GuiVerde.Opt("+AlwaysOnTop") ; Reforça a propriedade
+            WinMoveTop(GuiVerde.Hwnd)    ; Força fisicamente para o topo da pilha
+        }
             
         if (SegundosRestantes <= 0)
             IniciarPausa()
@@ -164,7 +162,7 @@ SalvarEstado(*) {
 IniciarPausa() {
     global SegundosRestantes, ModoAtual
     SalvarEstado()
-    SoundBeep 1000, 500 ; Beep mais curto para não travar
+    SoundBeep 1000, 500 
     GuiVerde.Hide()
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
     ModoAtual := "Pausa"
@@ -174,7 +172,6 @@ IniciarPausa() {
 
 EncerrarPausa() {
     global SegundosRestantes, ModoAtual
-    ; Removido loop de beeps que podia causar atraso
     SoundBeep 1500, 300
     GuiVermelho.Hide()
     GuiVerde.Show("NoActivate")
@@ -202,21 +199,17 @@ AbrirConfiguracoes(*) {
     GuiConfig.SetFont("s10", "Segoe UI")
     GuiConfig.BackColor := "White"
     
-    ; Campo Trabalho
     GuiConfig.Add("Text", "xm", "⏱️ Trabalho (minutos):")
     InputTrab := GuiConfig.Add("Edit", "w200 Number", MinutosTrabalho)
     
-    ; Campo Pausa
     GuiConfig.Add("Text", "xm y+15", "☕ Pausa (minutos):")
     InputPausa := GuiConfig.Add("Edit", "w200 Number", MinutosPausa)
     
-    ; Botão Salvar
     BtnSalvar := GuiConfig.Add("Button", "xm y+20 w200 h40 Default", "Salvar e Aplicar")
     BtnSalvar.OnEvent("Click", SalvarPreferencias)
     
     GuiConfig.Show()
 
-    ; Função interna para processar o clique
     SalvarPreferencias(*) {
         NovoTrab := InputTrab.Value
         NovoPausa := InputPausa.Value
@@ -226,28 +219,20 @@ AbrirConfiguracoes(*) {
             return
         }
 
-        ; Atualiza as variáveis globais
         global MinutosTrabalho := Integer(NovoTrab)
         global MinutosPausa    := Integer(NovoPausa)
 
-        ; Salva no arquivo INI
         IniWrite(MinutosTrabalho, ArquivoMemoria, "Config", "Trabalho")
         IniWrite(MinutosPausa,    ArquivoMemoria, "Config", "Pausa")
 
-        ; --- A MUDANÇA ESTÁ AQUI ---
-        GuiConfig.Destroy() ; 1º: Fecha a janela IMEDIATAMENTE (sem esperar nada)
-        
-        ; Removi a MsgBox("Configurações salvas!") porque era redundante.
-        ; O ReiniciarCiclo já vai mostrar que deu tudo certo.
-        
-        ReiniciarCiclo()    ; 2º: Inicia o novo ciclo (que mostrará sua própria MsgBox limpa)
+        GuiConfig.Destroy() 
+        ReiniciarCiclo()    
     }
-
 }
 
 ; ==============================================================================
 ; FUNÇÃO DE CLIQUE NO RELÓGIO
 ; ==============================================================================
 MostrarMenu(*) {
-    A_TrayMenu.Show() ; Exibe o menu da bandeja na posição do mouse
+    A_TrayMenu.Show() 
 }
