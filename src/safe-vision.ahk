@@ -22,7 +22,6 @@ A_TrayMenu.Add("Sair", EncerrarApp)
 ; ==============================================================================
 global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
 
-; Tenta ler do arquivo. Se não existir, usa 20 e 2.
 global MinutosTrabalho := IniRead(ArquivoMemoria, "Config", "Trabalho", 20)
 global MinutosPausa    := IniRead(ArquivoMemoria, "Config", "Pausa", 2)
 
@@ -33,20 +32,39 @@ global Y_Verde := 30
 global SegundosRestantes := MinutosTrabalho * 60
 global ModoAtual := "Trabalho" 
 
-; Salva ao sair (Shutdown ou ExitApp)
 OnExit(SalvarEstado)
 
 ; ==============================================================================
-; CARREGAMENTO DA MEMÓRIA
+; CARREGAMENTO DA MEMÓRIA (LÓGICA DE BOOT ROBUSTA)
 ; ==============================================================================
+CarregarMemoria := false
+
 if FileExist(ArquivoMemoria) {
+    ; 1. Calcula a hora exata que o PC ligou (Boot)
+    TempoLigadoSegundos := A_TickCount // 1000
+    DataHoraBoot := DateAdd(A_Now, -TempoLigadoSegundos, "Seconds")
+
+    ; 2. Verifica a hora do último salvamento do script
+    DataHoraUltimoSave := FileGetTime(ArquivoMemoria)
+
+    ; 3. Lógica de Sessão:
+    ; Se o Boot aconteceu ANTES do último Save (Diferença negativa), 
+    ; significa que ainda estamos na mesma sessão -> CARREGA.
+    ; Se o Boot aconteceu DEPOIS do último Save (Diferença positiva),
+    ; significa que o PC reiniciou -> NÃO CARREGA (Reseta).
+    if (DateDiff(DataHoraBoot, DataHoraUltimoSave, "Seconds") < 0) {
+        CarregarMemoria := true
+    }
+}
+
+if (CarregarMemoria) {
     try {
         SalvoSegundos := IniRead(ArquivoMemoria, "Estado", "Segundos", 0)
         SalvoModo     := IniRead(ArquivoMemoria, "Estado", "Modo", "Trabalho")
         SalvoTime     := IniRead(ArquivoMemoria, "Estado", "Timestamp", A_Now)
 
-        ; Se os dados forem válidos
         if (SalvoTime != "" && IsNumber(SalvoSegundos)) {
+            ; Desconta o tempo que o script ficou fechado (se for mesma sessão)
             TempoDecorridoOff := DateDiff(A_Now, SalvoTime, "Seconds")
             
             SegundosRestantes := Integer(SalvoSegundos) - TempoDecorridoOff
@@ -60,7 +78,6 @@ if FileExist(ArquivoMemoria) {
     }
 }
 
-; Cálculo inicial do texto
 TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
@@ -71,17 +88,14 @@ GuiVerde.BackColor := "101010"
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
 
-; 1. O RETÂNGULO "INVISÍVEL" (HITBOX)
 FundoHitbox := GuiVerde.Add("Text", "x0 y0 w115 h45 Background121212")
 FundoHitbox.OnEvent("Click", MostrarMenu)
 FundoHitbox.OnEvent("ContextMenu", MostrarMenu)
 
-; 2. O RELÓGIO (Camada da Frente)
 TextoVerde := GuiVerde.Add("Text", "xp yp c00FF00 Right w80 BackgroundTrans", TextoInicial)
 TextoVerde.OnEvent("Click", MostrarMenu)
 TextoVerde.OnEvent("ContextMenu", MostrarMenu)
 
-; 3. O MENU (≡)
 TextoMenu := GuiVerde.Add("Text", "xp+80 yp c00FF00 Left w30 BackgroundTrans", "≡")
 TextoMenu.OnEvent("Click", MostrarMenu)
 TextoMenu.OnEvent("ContextMenu", MostrarMenu)
@@ -104,12 +118,24 @@ if (ModoAtual = "Pausa") {
 }
 
 ; ==============================================================================
-; MOTOR DO TEMPO
+; MOTOR DO TEMPO (COM DETECTOR DE SUSPENSÃO)
 ; ==============================================================================
 SetTimer CicloDeTempo, 1000
 
 CicloDeTempo() {
     global SegundosRestantes, ModoAtual
+    static UltimaExecucao := A_Now
+
+    ; --- DETECTOR DE SUSPENSÃO (SALTO TEMPORAL) ---
+    ; Se passaram mais de 10 segundos desde o último 'tique' do relógio,
+    ; significa que o Windows pausou tudo (Suspendeu).
+    if (DateDiff(A_Now, UltimaExecucao, "Seconds") > 10) {
+        ReiniciarCiclo() 
+        UltimaExecucao := A_Now
+        ; Não damos 'return' aqui para que o relógio já atualize visualmente agora
+    }
+    UltimaExecucao := A_Now
+    ; ----------------------------------------------
     
     SegundosRestantes -= 1
     
@@ -122,7 +148,6 @@ CicloDeTempo() {
         if (TextoVerde.Value != TempoFormatado)
             TextoVerde.Value := TempoFormatado
 
-        ; Reforço do Verde
         try {
             GuiVerde.Opt("+AlwaysOnTop")
             WinMoveTop(GuiVerde.Hwnd)
@@ -132,12 +157,9 @@ CicloDeTempo() {
             IniciarPausa()
     } 
     else {
-        ; --- MODO PAUSA (Vermelho) ---
         if (TextoVermelho.Value != TempoFormatado)
             TextoVermelho.Value := TempoFormatado
             
-        ; === CORREÇÃO AQUI ===
-        ; Agora o Vermelho também briga pelo topo a cada segundo
         try {
             GuiVermelho.Opt("+AlwaysOnTop")
             WinMoveTop(GuiVermelho.Hwnd)
@@ -188,7 +210,7 @@ EncerrarPausa() {
 ReiniciarCiclo(*) {
     global SegundosRestantes, ModoAtual
     EncerrarPausa()
-    MsgBox("Ciclo reiniciado!", "Safe Vision", "T3")
+    ; MsgBox removido: Reinício silencioso ao acordar
 }
 
 EncerrarApp(*) {
@@ -235,9 +257,6 @@ AbrirConfiguracoes(*) {
     }
 }
 
-; ==============================================================================
-; FUNÇÃO DE CLIQUE NO RELÓGIO
-; ==============================================================================
 MostrarMenu(*) {
     A_TrayMenu.Show() 
 }
