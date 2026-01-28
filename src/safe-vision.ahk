@@ -20,7 +20,13 @@ A_TrayMenu.Add("Sair", EncerrarApp)
 ; ==============================================================================
 ; CONFIGURAÇÕES
 ; ==============================================================================
-global ArquivoMemoria := A_ScriptDir . "\estado_tempo.ini"
+
+; Ajuste para Instalador (Salvar em AppData)
+PastaDados := A_AppData . "\SafeVision"
+if !DirExist(PastaDados)
+    DirCreate(PastaDados)
+
+global ArquivoMemoria := PastaDados . "\estado_tempo.ini"
 
 global MinutosTrabalho := IniRead(ArquivoMemoria, "Config", "Trabalho", 20)
 global MinutosPausa    := IniRead(ArquivoMemoria, "Config", "Pausa", 2)
