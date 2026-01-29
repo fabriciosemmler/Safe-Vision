@@ -199,7 +199,10 @@ IniciarPausa() {
     GuiVerde.Hide()
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
     ModoAtual := "Pausa"
-    SegundosRestantes := MinutosPausa * 60
+    
+    ; MODIFICAÇÃO: Usa a função conversora em vez de multiplicar direto por 60
+    SegundosRestantes := ConverterTempoPausa(MinutosPausa)
+    
     SalvarEstado()
 }
 
@@ -224,6 +227,16 @@ EncerrarApp(*) {
     ExitApp
 }
 
+ConverterTempoPausa(texto) {
+    if InStr(texto, ":") {
+        partes := StrSplit(texto, ":")
+        ; Minutos * 60 + Segundos
+        return (Integer(partes[1]) * 60) + Integer(partes[2])
+    }
+    ; Se não tiver ':', assume que o número digitado já são segundos
+    return Integer(texto)
+}
+
 ; ==============================================================================
 ; TELA DE CONFIGURAÇÕES
 ; ==============================================================================
@@ -235,8 +248,10 @@ AbrirConfiguracoes(*) {
     GuiConfig.Add("Text", "xm", "⏱️ Trabalho (minutos):")
     InputTrab := GuiConfig.Add("Edit", "w200 Number", MinutosTrabalho)
     
-    GuiConfig.Add("Text", "xm y+15", "☕ Pausa (minutos):")
-    InputPausa := GuiConfig.Add("Edit", "w200 Number", MinutosPausa)
+    ; MODIFICAÇÃO: Texto explicativo atualizado
+    GuiConfig.Add("Text", "xm y+15", "☕ Pausa (MM:SS ou Segundos):")
+    ; MODIFICAÇÃO: Removida a opção 'Number' para permitir ':'
+    InputPausa := GuiConfig.Add("Edit", "w200", MinutosPausa)
     
     BtnSalvar := GuiConfig.Add("Button", "xm y+20 w200 h40 Default", "Salvar e Aplicar")
     BtnSalvar.OnEvent("Click", SalvarPreferencias)
@@ -247,13 +262,14 @@ AbrirConfiguracoes(*) {
         NovoTrab := InputTrab.Value
         NovoPausa := InputPausa.Value
 
-        if (NovoTrab = "" || NovoPausa = "" || NovoTrab = 0 || NovoPausa = 0) {
-            MsgBox("Por favor, insira valores válidos (maiores que 0).", "Erro", "Icon!")
+        ; Validação simples para garantir que não está vazio
+        if (NovoTrab = "" || NovoPausa = "") {
+            MsgBox("Por favor, preencha todos os campos.", "Erro", "Icon!")
             return
         }
 
         global MinutosTrabalho := Integer(NovoTrab)
-        global MinutosPausa    := Integer(NovoPausa)
+        global MinutosPausa    := NovoPausa ; Agora salva como texto (string)
 
         IniWrite(MinutosTrabalho, ArquivoMemoria, "Config", "Trabalho")
         IniWrite(MinutosPausa,    ArquivoMemoria, "Config", "Pausa")
