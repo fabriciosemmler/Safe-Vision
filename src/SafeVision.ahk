@@ -36,11 +36,8 @@ global Y_Verde := 30
 ; Valores Padrão
 global SegundosRestantes := MinutosTrabalho * 60
 global ModoAtual := "Trabalho" 
-
-; --- NOVAS VARIÁVEIS DE CONTROLE ---
 global JanelaFocadaAoTerminar := 0 
 global TituloFocadoAoTerminar := ""
-; -----------------------------------
 
 OnExit(SalvarEstado)
 
@@ -104,12 +101,21 @@ if (ModoAtual = "Trabalho")
     GuiVerde.Show("x" X_Verde " y" Y_Verde " w115 h45 NoActivate") 
 
 ; ==============================================================================
-; INTERFACE 2: ALERTA VERMELHO
+; INTERFACE 2: ALERTA VERMELHO (ATUALIZADA)
 ; ==============================================================================
 GuiVermelho := Gui("+AlwaysOnTop -Caption +ToolWindow")
 GuiVermelho.BackColor := "000000"
+
+; Relógio Gigante
 GuiVermelho.SetFont("s100 bold", "Segoe UI")
 TextoVermelho := GuiVermelho.Add("Text", "x0 y200 cFF0000 Center w" A_ScreenWidth, TextoInicial)
+
+; --- NOVO: BOTÃO DISCRETO DE PÂNICO ---
+GuiVermelho.SetFont("s12 norm", "Segoe UI")
+; Cor c330000 é um vermelho bem escuro, quase marrom, para não chamar atenção
+BtnPular := GuiVermelho.Add("Text", "x" (A_ScreenWidth - 150) " y" (A_ScreenHeight - 50) " w130 h30 c330000 Right", "Pular Pausa ⏭")
+BtnPular.OnEvent("Click", PularPausaManual)
+; --------------------------------------
 
 if (ModoAtual = "Pausa") {
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
@@ -118,7 +124,7 @@ if (ModoAtual = "Pausa") {
 }
 
 ; ==============================================================================
-; MOTOR DO TEMPO (COM DETECÇÃO DE ABAS)
+; MOTOR DO TEMPO
 ; ==============================================================================
 SetTimer CicloDeTempo, 1000
 
@@ -135,13 +141,12 @@ CicloDeTempo() {
     if (ModoAtual == "Espera") {
         try {
             JanelaAtual := WinGetID("A")
-            TituloAtual := WinGetTitle("A") ; Pega o título (que muda com a aba)
+            TituloAtual := WinGetTitle("A")
         } catch {
             JanelaAtual := 0
             TituloAtual := ""
         }
         
-        ; --- MODIFICAÇÃO: Verifica se MUDOU ID OU MUDOU TÍTULO ---
         if (JanelaAtual != JanelaFocadaAoTerminar || TituloAtual != TituloFocadoAoTerminar) {
             IniciarPausa()
         }
@@ -174,7 +179,7 @@ CicloDeTempo() {
             ModoAtual := "Espera"
             try {
                 JanelaFocadaAoTerminar := WinGetID("A")
-                TituloFocadoAoTerminar := WinGetTitle("A") ; Salva o título da aba atual
+                TituloFocadoAoTerminar := WinGetTitle("A")
             } catch {
                 JanelaFocadaAoTerminar := 0
                 TituloFocadoAoTerminar := ""
@@ -232,6 +237,11 @@ EncerrarPausa() {
     ModoAtual := "Trabalho"
     SegundosRestantes := MinutosTrabalho * 60
     SalvarEstado()
+}
+
+; Função wrapper para o botão (poderia adicionar log de "trapaça" aqui no futuro)
+PularPausaManual(*) {
+    EncerrarPausa()
 }
 
 ReiniciarCiclo(*) {
