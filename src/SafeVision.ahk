@@ -21,7 +21,6 @@ A_TrayMenu.Add("Sair", EncerrarApp)
 ; CONFIGURAÇÕES
 ; ==============================================================================
 
-; Ajuste para Instalador (Salvar em AppData)
 PastaDados := A_AppData . "\SafeVision"
 if !DirExist(PastaDados)
     DirCreate(PastaDados)
@@ -37,6 +36,7 @@ global Y_Verde := 30
 ; Valores Padrão
 global SegundosRestantes := MinutosTrabalho * 60
 global ModoAtual := "Trabalho" 
+global JanelaFocadaAoTerminar := 0 ; Nova variável para o modo de espera
 
 OnExit(SalvarEstado)
 
@@ -46,18 +46,10 @@ OnExit(SalvarEstado)
 CarregarMemoria := false
 
 if FileExist(ArquivoMemoria) {
-    ; 1. Calcula a hora exata que o PC ligou (Boot)
     TempoLigadoSegundos := A_TickCount // 1000
     DataHoraBoot := DateAdd(A_Now, -TempoLigadoSegundos, "Seconds")
-
-    ; 2. Verifica a hora do último salvamento do script
     DataHoraUltimoSave := FileGetTime(ArquivoMemoria)
 
-    ; 3. Lógica de Sessão:
-    ; Se o Boot aconteceu ANTES do último Save (Diferença negativa), 
-    ; significa que ainda estamos na mesma sessão -> CARREGA.
-    ; Se o Boot aconteceu DEPOIS do último Save (Diferença positiva),
-    ; significa que o PC reiniciou -> NÃO CARREGA (Reseta).
     if (DateDiff(DataHoraBoot, DataHoraUltimoSave, "Seconds") < 0) {
         CarregarMemoria := true
     }
@@ -70,13 +62,14 @@ if (CarregarMemoria) {
         SalvoTime     := IniRead(ArquivoMemoria, "Estado", "Timestamp", A_Now)
 
         if (SalvoTime != "" && IsNumber(SalvoSegundos)) {
-            ; Desconta o tempo que o script ficou fechado (se for mesma sessão)
             TempoDecorridoOff := DateDiff(A_Now, SalvoTime, "Seconds")
             
             SegundosRestantes := Integer(SalvoSegundos) - TempoDecorridoOff
             ModoAtual := SalvoModo
 
-            if (SegundosRestantes <= 0) {
+            if (SegundosRestantes <= 0 && ModoAtual == "Trabalho") {
+                ; Se o tempo acabou enquanto estava desligado, reseta para trabalho
+                ; (Ou poderia entrar em modo espera, mas resetar é mais seguro)
                 SegundosRestantes := MinutosTrabalho * 60
                 ModoAtual := "Trabalho"
             }
@@ -87,7 +80,7 @@ if (CarregarMemoria) {
 TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
-; INTERFACE 1: RELÓGIO VERDE
+; INTERFACE 1: RELÓGIO VERDE (AGORA MULTICOLOR)
 ; ==============================================================================
 GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow") 
 GuiVerde.BackColor := "101010" 
@@ -124,25 +117,42 @@ if (ModoAtual = "Pausa") {
 }
 
 ; ==============================================================================
-; MOTOR DO TEMPO (COM DETECTOR DE SUSPENSÃO)
+; MOTOR DO TEMPO (COM MODO DE ESPERA INTELIGENTE)
 ; ==============================================================================
 SetTimer CicloDeTempo, 1000
 
 CicloDeTempo() {
-    global SegundosRestantes, ModoAtual
+    global SegundosRestantes, ModoAtual, JanelaFocadaAoTerminar
     static UltimaExecucao := A_Now
 
-    ; --- DETECTOR DE SUSPENSÃO (SALTO TEMPORAL) ---
-    ; Se passaram mais de 10 segundos desde o último 'tique' do relógio,
-    ; significa que o Windows pausou tudo (Suspendeu).
+    ; --- DETECTOR DE SUSPENSÃO ---
     if (DateDiff(A_Now, UltimaExecucao, "Seconds") > 10) {
         ReiniciarCiclo() 
         UltimaExecucao := A_Now
-        ; Não damos 'return' aqui para que o relógio já atualize visualmente agora
     }
     UltimaExecucao := A_Now
-    ; ----------------------------------------------
+    ; -----------------------------
     
+    if (ModoAtual == "Espera") {
+        ; MODO ESPERA: O tempo acabou, estamos vigiando a troca de janela
+        try {
+            JanelaAtual := WinGetID("A")
+        } catch {
+            JanelaAtual := 0
+        }
+        
+        ; Se a janela mudou, AGORA sim iniciamos a pausa
+        if (JanelaAtual != JanelaFocadaAoTerminar) {
+            IniciarPausa()
+        }
+        
+        ; Pisca o relógio em laranja/vermelho para avisar que está pendente
+        CorAlerta := (Mod(A_TickCount, 2000) < 1000) ? "cFFAA00" : "cFF0000"
+        TextoVerde.Opt(CorAlerta)
+        TextoVerde.Value := "00:00"
+        return ; Não decrementa tempo no modo espera
+    }
+
     SegundosRestantes -= 1
     
     if (Mod(SegundosRestantes, 60) = 0)
@@ -151,18 +161,28 @@ CicloDeTempo() {
     TempoFormatado := FormatarTempo(SegundosRestantes)
     
     if (ModoAtual = "Trabalho") {
-        if (TextoVerde.Value != TempoFormatado)
+        if (TextoVerde.Value != TempoFormatado) {
             TextoVerde.Value := TempoFormatado
+            TextoVerde.Opt("c00FF00") ; Garante que está verde
+        }
 
         try {
             GuiVerde.Opt("+AlwaysOnTop")
             WinMoveTop(GuiVerde.Hwnd)
         }
             
-        if (SegundosRestantes <= 0)
-            IniciarPausa()
+        if (SegundosRestantes <= 0) {
+            ; EM VEZ DE PAUSAR DIRETO, ENTRA EM MODO DE ESPERA
+            ModoAtual := "Espera"
+            try {
+                JanelaFocadaAoTerminar := WinGetID("A")
+            } catch {
+                JanelaFocadaAoTerminar := 0
+            }
+            SoundBeep 750, 150 ; Bip suave de aviso "Acabou, pode trocar"
+        }
     } 
-    else {
+    else { ; Modo Pausa
         if (TextoVermelho.Value != TempoFormatado)
             TextoVermelho.Value := TempoFormatado
             
@@ -200,9 +220,7 @@ IniciarPausa() {
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
     ModoAtual := "Pausa"
     
-    ; MODIFICAÇÃO: Usa a função conversora em vez de multiplicar direto por 60
     SegundosRestantes := ConverterTempoPausa(MinutosPausa)
-    
     SalvarEstado()
 }
 
@@ -211,6 +229,7 @@ EncerrarPausa() {
     SoundBeep 1500, 300
     GuiVermelho.Hide()
     GuiVerde.Show("NoActivate")
+    TextoVerde.Opt("c00FF00") ; Restaura cor verde
     ModoAtual := "Trabalho"
     SegundosRestantes := MinutosTrabalho * 60
     SalvarEstado()
@@ -219,7 +238,7 @@ EncerrarPausa() {
 ReiniciarCiclo(*) {
     global SegundosRestantes, ModoAtual
     EncerrarPausa()
-    ; MsgBox removido: Reinício silencioso ao acordar
+    TextoVerde.Opt("c00FF00")
 }
 
 EncerrarApp(*) {
@@ -230,10 +249,8 @@ EncerrarApp(*) {
 ConverterTempoPausa(texto) {
     if InStr(texto, ":") {
         partes := StrSplit(texto, ":")
-        ; Minutos * 60 + Segundos
         return (Integer(partes[1]) * 60) + Integer(partes[2])
     }
-    ; Se não tiver ':', assume que o número digitado já são segundos
     return Integer(texto)
 }
 
@@ -248,9 +265,7 @@ AbrirConfiguracoes(*) {
     GuiConfig.Add("Text", "xm", "⏱️ Trabalho (minutos):")
     InputTrab := GuiConfig.Add("Edit", "w200 Number", MinutosTrabalho)
     
-    ; MODIFICAÇÃO: Texto explicativo atualizado
     GuiConfig.Add("Text", "xm y+15", "☕ Pausa (MM:SS ou Segundos):")
-    ; MODIFICAÇÃO: Removida a opção 'Number' para permitir ':'
     InputPausa := GuiConfig.Add("Edit", "w200", MinutosPausa)
     
     BtnSalvar := GuiConfig.Add("Button", "xm y+20 w200 h40 Default", "Salvar e Aplicar")
@@ -262,14 +277,13 @@ AbrirConfiguracoes(*) {
         NovoTrab := InputTrab.Value
         NovoPausa := InputPausa.Value
 
-        ; Validação simples para garantir que não está vazio
         if (NovoTrab = "" || NovoPausa = "") {
             MsgBox("Por favor, preencha todos os campos.", "Erro", "Icon!")
             return
         }
 
         global MinutosTrabalho := Integer(NovoTrab)
-        global MinutosPausa    := NovoPausa ; Agora salva como texto (string)
+        global MinutosPausa    := NovoPausa
 
         IniWrite(MinutosTrabalho, ArquivoMemoria, "Config", "Trabalho")
         IniWrite(MinutosPausa,    ArquivoMemoria, "Config", "Pausa")
