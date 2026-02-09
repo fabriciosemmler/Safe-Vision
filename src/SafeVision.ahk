@@ -36,12 +36,16 @@ global Y_Verde := 30
 ; Valores Padrão
 global SegundosRestantes := MinutosTrabalho * 60
 global ModoAtual := "Trabalho" 
-global JanelaFocadaAoTerminar := 0 ; Nova variável para o modo de espera
+
+; --- NOVAS VARIÁVEIS DE CONTROLE ---
+global JanelaFocadaAoTerminar := 0 
+global TituloFocadoAoTerminar := ""
+; -----------------------------------
 
 OnExit(SalvarEstado)
 
 ; ==============================================================================
-; CARREGAMENTO DA MEMÓRIA (LÓGICA DE BOOT ROBUSTA)
+; CARREGAMENTO DA MEMÓRIA
 ; ==============================================================================
 CarregarMemoria := false
 
@@ -63,13 +67,10 @@ if (CarregarMemoria) {
 
         if (SalvoTime != "" && IsNumber(SalvoSegundos)) {
             TempoDecorridoOff := DateDiff(A_Now, SalvoTime, "Seconds")
-            
             SegundosRestantes := Integer(SalvoSegundos) - TempoDecorridoOff
             ModoAtual := SalvoModo
 
             if (SegundosRestantes <= 0 && ModoAtual == "Trabalho") {
-                ; Se o tempo acabou enquanto estava desligado, reseta para trabalho
-                ; (Ou poderia entrar em modo espera, mas resetar é mais seguro)
                 SegundosRestantes := MinutosTrabalho * 60
                 ModoAtual := "Trabalho"
             }
@@ -80,7 +81,7 @@ if (CarregarMemoria) {
 TextoInicial := FormatarTempo(SegundosRestantes)
 
 ; ==============================================================================
-; INTERFACE 1: RELÓGIO VERDE (AGORA MULTICOLOR)
+; INTERFACE 1: RELÓGIO VERDE
 ; ==============================================================================
 GuiVerde := Gui("+AlwaysOnTop -Caption +ToolWindow") 
 GuiVerde.BackColor := "101010" 
@@ -117,40 +118,38 @@ if (ModoAtual = "Pausa") {
 }
 
 ; ==============================================================================
-; MOTOR DO TEMPO (COM MODO DE ESPERA INTELIGENTE)
+; MOTOR DO TEMPO (COM DETECÇÃO DE ABAS)
 ; ==============================================================================
 SetTimer CicloDeTempo, 1000
 
 CicloDeTempo() {
-    global SegundosRestantes, ModoAtual, JanelaFocadaAoTerminar
+    global SegundosRestantes, ModoAtual, JanelaFocadaAoTerminar, TituloFocadoAoTerminar
     static UltimaExecucao := A_Now
 
-    ; --- DETECTOR DE SUSPENSÃO ---
     if (DateDiff(A_Now, UltimaExecucao, "Seconds") > 10) {
         ReiniciarCiclo() 
         UltimaExecucao := A_Now
     }
     UltimaExecucao := A_Now
-    ; -----------------------------
     
     if (ModoAtual == "Espera") {
-        ; MODO ESPERA: O tempo acabou, estamos vigiando a troca de janela
         try {
             JanelaAtual := WinGetID("A")
+            TituloAtual := WinGetTitle("A") ; Pega o título (que muda com a aba)
         } catch {
             JanelaAtual := 0
+            TituloAtual := ""
         }
         
-        ; Se a janela mudou, AGORA sim iniciamos a pausa
-        if (JanelaAtual != JanelaFocadaAoTerminar) {
+        ; --- MODIFICAÇÃO: Verifica se MUDOU ID OU MUDOU TÍTULO ---
+        if (JanelaAtual != JanelaFocadaAoTerminar || TituloAtual != TituloFocadoAoTerminar) {
             IniciarPausa()
         }
         
-        ; Pisca o relógio em laranja/vermelho para avisar que está pendente
         CorAlerta := (Mod(A_TickCount, 2000) < 1000) ? "cFFAA00" : "cFF0000"
         TextoVerde.Opt(CorAlerta)
         TextoVerde.Value := "00:00"
-        return ; Não decrementa tempo no modo espera
+        return 
     }
 
     SegundosRestantes -= 1
@@ -163,7 +162,7 @@ CicloDeTempo() {
     if (ModoAtual = "Trabalho") {
         if (TextoVerde.Value != TempoFormatado) {
             TextoVerde.Value := TempoFormatado
-            TextoVerde.Opt("c00FF00") ; Garante que está verde
+            TextoVerde.Opt("c00FF00")
         }
 
         try {
@@ -172,17 +171,18 @@ CicloDeTempo() {
         }
             
         if (SegundosRestantes <= 0) {
-            ; EM VEZ DE PAUSAR DIRETO, ENTRA EM MODO DE ESPERA
             ModoAtual := "Espera"
             try {
                 JanelaFocadaAoTerminar := WinGetID("A")
+                TituloFocadoAoTerminar := WinGetTitle("A") ; Salva o título da aba atual
             } catch {
                 JanelaFocadaAoTerminar := 0
+                TituloFocadoAoTerminar := ""
             }
-            SoundBeep 750, 150 ; Bip suave de aviso "Acabou, pode trocar"
+            SoundBeep 750, 150 
         }
     } 
-    else { ; Modo Pausa
+    else { 
         if (TextoVermelho.Value != TempoFormatado)
             TextoVermelho.Value := TempoFormatado
             
@@ -219,7 +219,6 @@ IniciarPausa() {
     GuiVerde.Hide()
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
     ModoAtual := "Pausa"
-    
     SegundosRestantes := ConverterTempoPausa(MinutosPausa)
     SalvarEstado()
 }
@@ -229,7 +228,7 @@ EncerrarPausa() {
     SoundBeep 1500, 300
     GuiVermelho.Hide()
     GuiVerde.Show("NoActivate")
-    TextoVerde.Opt("c00FF00") ; Restaura cor verde
+    TextoVerde.Opt("c00FF00")
     ModoAtual := "Trabalho"
     SegundosRestantes := MinutosTrabalho * 60
     SalvarEstado()
