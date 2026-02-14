@@ -85,20 +85,22 @@ GuiVerde.BackColor := "101010"
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
 
+; ALTERADO: Click esquerdo agora Arrasta. ContextMenu (Clique Direito) abre o Menu.
 FundoHitbox := GuiVerde.Add("Text", "x0 y0 w115 h45 Background121212")
-FundoHitbox.OnEvent("Click", MostrarMenu)
+FundoHitbox.OnEvent("Click", ArrastarJanela)     ; <--- Mudou aqui
 FundoHitbox.OnEvent("ContextMenu", MostrarMenu)
 
 TextoVerde := GuiVerde.Add("Text", "xp yp c00FF00 Right w80 BackgroundTrans", TextoInicial)
-TextoVerde.OnEvent("Click", MostrarMenu)
+TextoVerde.OnEvent("Click", ArrastarJanela)      ; <--- Mudou aqui
 TextoVerde.OnEvent("ContextMenu", MostrarMenu)
 
+; O ícone de Menu (≡) continua abrindo o menu com clique esquerdo para facilitar
 TextoMenu := GuiVerde.Add("Text", "xp+80 yp c00FF00 Left w30 BackgroundTrans", "≡")
 TextoMenu.OnEvent("Click", MostrarMenu)
 TextoMenu.OnEvent("ContextMenu", MostrarMenu)
 
 if (ModoAtual = "Trabalho")
-    GuiVerde.Show("x" X_Verde " y" Y_Verde " w115 h45 NoActivate") 
+    GuiVerde.Show("x" X_Verde " y" Y_Verde " w115 h45 NoActivate")
 
 ; ==============================================================================
 ; INTERFACE 2: ALERTA VERMELHO (ATUALIZADA)
@@ -304,4 +306,19 @@ AbrirConfiguracoes(*) {
 
 MostrarMenu(*) {
     A_TrayMenu.Show() 
+}
+
+; ==============================================================================
+; CONTROLES DE POSIÇÃO (NOVO)
+; ==============================================================================
+ArrastarJanela(*) {
+    PostMessage 0xA1, 2 ; Engana o Windows: "Estou clicando na barra de título"
+}
+
+; Atalho ALT + V para resetar posição
+!v:: {
+    try {
+        GuiVerde.Move(X_Verde, Y_Verde)
+        SoundBeep 750, 100 ; Bip de confirmação
+    }
 }
