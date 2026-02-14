@@ -85,17 +85,17 @@ GuiVerde.BackColor := "101010"
 GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
 
-; ALTERADO: Click esquerdo agora Arrasta. ContextMenu (Clique Direito) abre o Menu.
-FundoHitbox := GuiVerde.Add("Text", "x0 y0 w115 h45 Background121212")
-FundoHitbox.OnEvent("Click", ArrastarJanela)     ; <--- Mudou aqui
-FundoHitbox.OnEvent("ContextMenu", MostrarMenu)
-
-TextoVerde := GuiVerde.Add("Text", "xp yp c00FF00 Right w80 BackgroundTrans", TextoInicial)
-TextoVerde.OnEvent("Click", ArrastarJanela)      ; <--- Mudou aqui
+; --- BLOCO 1: O TEMPO (Lado Esquerdo - 85 pixels) ---
+; Este bloco serve para ARRASTAR a janela.
+; Usamos 'Background121212' para dar a cor de fundo cinza.
+TextoVerde := GuiVerde.Add("Text", "x0 y0 w85 h45 c00FF00 Right Background121212", TextoInicial)
+TextoVerde.OnEvent("Click", ArrastarJanela)
 TextoVerde.OnEvent("ContextMenu", MostrarMenu)
 
-; O ícone de Menu (≡) continua abrindo o menu com clique esquerdo para facilitar
-TextoMenu := GuiVerde.Add("Text", "xp+80 yp c00FF00 Left w30 BackgroundTrans", "≡")
+; --- BLOCO 2: O MENU (Lado Direito - 30 pixels) ---
+; Este bloco serve EXCLUSIVAMENTE para o MENU.
+; 'x+0' significa: cole exatamente onde o anterior terminou.
+TextoMenu := GuiVerde.Add("Text", "x+0 yp w30 h45 c00FF00 Center Background121212", "≡")
 TextoMenu.OnEvent("Click", MostrarMenu)
 TextoMenu.OnEvent("ContextMenu", MostrarMenu)
 
