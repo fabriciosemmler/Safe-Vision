@@ -233,9 +233,6 @@ IniciarPausa() {
 EncerrarPausa() {
     global SegundosRestantes, ModoAtual
     SoundBeep 1500, 300
-    
-    AvisarCelular() ; <--- ADICIONADO AQUI: Envia o sinal para o app ntfy
-    
     GuiVermelho.Hide()
     GuiVerde.Show("NoActivate")
     TextoVerde.Opt("c00FF00")
@@ -266,24 +263,6 @@ ConverterTempoPausa(texto) {
         return (Integer(partes[1]) * 60) + Integer(partes[2])
     }
     return Integer(texto)
-}
-
-AvisarCelular() {
-    ; Substitua o final da URL pelo nome exato do tópico que você criou no app
-    UrlAviso := "https://ntfy.sh/PausaSafeVision"
-    
-    try {
-        HTTP := ComObject("WinHttp.WinHttpRequest.5.1")
-        ; CORRIGIDO PARA 'false' para garantir que a requisição não morra antes de sair do PC
-        HTTP.Open("POST", UrlAviso, false) 
-        
-        ; Define a prioridade máxima para furar o modo Não Perturbe do celular (opcional)
-        HTTP.SetRequestHeader("X-Priority", "5") 
-        HTTP.SetRequestHeader("X-Title", "Safe Vision")
-        
-        ; A mensagem que vai aparecer na tela
-        HTTP.Send("A pausa acabou! Pode abrir os olhos.") 
-    }
 }
 
 ; ==============================================================================
