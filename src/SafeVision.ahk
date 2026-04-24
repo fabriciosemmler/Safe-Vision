@@ -26,6 +26,7 @@ if !DirExist(PastaDados)
     DirCreate(PastaDados)
 
 global ArquivoMemoria := PastaDados . "\estado_tempo.ini"
+global ArquivoFlagMoonlight := A_Temp . "\moonlight.flag" ; (NOVO) Flag do Sunshine
 
 global MinutosTrabalho := IniRead(ArquivoMemoria, "Config", "Trabalho", 20)
 global MinutosPausa    := IniRead(ArquivoMemoria, "Config", "Pausa", 2)
@@ -33,11 +34,13 @@ global MinutosPausa    := IniRead(ArquivoMemoria, "Config", "Pausa", 2)
 global X_Verde := A_ScreenWidth - 150
 global Y_Verde := 30
 
-; Valores Padrão
+; Valores Padrão e Variáveis de Jogo
 global SegundosRestantes := MinutosTrabalho * 60
 global ModoAtual := "Trabalho" 
 global JanelaFocadaAoTerminar := 0 
 global TituloFocadoAoTerminar := ""
+global JogoAtivo := false
+global ResNativaX := A_ScreenWidth
 
 OnExit(SalvarEstado)
 
@@ -86,24 +89,20 @@ GuiVerde.SetFont("s20 bold", "Segoe UI")
 WinSetTransColor("101010", GuiVerde)
 
 ; --- BLOCO 1: O TEMPO (Lado Esquerdo - 85 pixels) ---
-; Este bloco serve para ARRASTAR a janela.
-; Usamos 'Background121212' para dar a cor de fundo cinza.
 TextoVerde := GuiVerde.Add("Text", "x0 y0 w85 h45 c00FF00 Right Background121212", TextoInicial)
 TextoVerde.OnEvent("Click", ArrastarJanela)
 TextoVerde.OnEvent("ContextMenu", MostrarMenu)
 
 ; --- BLOCO 2: O MENU (Lado Direito - 30 pixels) ---
-; Este bloco serve EXCLUSIVAMENTE para o MENU.
-; 'x+0' significa: cole exatamente onde o anterior terminou.
 TextoMenu := GuiVerde.Add("Text", "x+0 yp w30 h45 c00FF00 Center Background121212", "≡")
 TextoMenu.OnEvent("Click", MostrarMenu)
 TextoMenu.OnEvent("ContextMenu", MostrarMenu)
 
-if (ModoAtual = "Trabalho")
+if (ModoAtual = "Trabalho" && !JogoAtivo)
     GuiVerde.Show("x" X_Verde " y" Y_Verde " w115 h45 NoActivate")
 
 ; ==============================================================================
-; INTERFACE 2: ALERTA VERMELHO (ATUALIZADA)
+; INTERFACE 2: ALERTA VERMELHO
 ; ==============================================================================
 GuiVermelho := Gui("+AlwaysOnTop -Caption +ToolWindow")
 GuiVermelho.BackColor := "000000"
@@ -112,18 +111,46 @@ GuiVermelho.BackColor := "000000"
 GuiVermelho.SetFont("s100 bold", "Segoe UI")
 TextoVermelho := GuiVermelho.Add("Text", "x0 y200 cFF0000 Center w" A_ScreenWidth, TextoInicial)
 
-; --- NOVO: BOTÃO DISCRETO DE PÂNICO ---
+; Botão Discreto
 GuiVermelho.SetFont("s12 norm", "Segoe UI")
-; Cor c330000 é um vermelho bem escuro, quase marrom, para não chamar atenção
 BtnPular := GuiVermelho.Add("Text", "x" (A_ScreenWidth - 150) " y" (A_ScreenHeight - 50) " w130 h30 c330000 Right", "Pular Pausa ⏭")
 BtnPular.OnEvent("Click", PularPausaManual)
-; --------------------------------------
 
-if (ModoAtual = "Pausa") {
+if (ModoAtual = "Pausa" && !JogoAtivo) {
     GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
 } else {
     GuiVermelho.Hide() 
 }
+
+; ==============================================================================
+; DETECÇÃO DE JOGO (TV / MOONLIGHT) (ATUALIZADO)
+; ==============================================================================
+OnMessage(0x007E, VerificarModoJogo) ; Continua ouvindo o cabo HDMI
+
+VerificarModoJogo(wParam := 0, lParam := 0, msg := 0, hwnd := 0) {
+    global JogoAtivo, ModoAtual, ArquivoFlagMoonlight
+    
+    ; Avalia TV conectada OU arquivo criado pelo Sunshine
+    EmJogo := (MonitorGetCount() > 1) || FileExist(ArquivoFlagMoonlight)
+
+    if (EmJogo) {
+        if (!JogoAtivo) {
+            JogoAtivo := true
+            GuiVerde.Hide()
+            GuiVermelho.Hide()
+        }
+    } else {
+        if (JogoAtivo) {
+            JogoAtivo := false
+            if (ModoAtual == "Trabalho")
+                GuiVerde.Show("NoActivate")
+            else if (ModoAtual == "Pausa")
+                GuiVermelho.Show("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight " NoActivate")
+        }
+    }
+}
+
+VerificarModoJogo() 
 
 ; ==============================================================================
 ; MOTOR DO TEMPO
@@ -131,8 +158,13 @@ if (ModoAtual = "Pausa") {
 SetTimer CicloDeTempo, 1000
 
 CicloDeTempo() {
-    global SegundosRestantes, ModoAtual, JanelaFocadaAoTerminar, TituloFocadoAoTerminar
+    global SegundosRestantes, ModoAtual, JanelaFocadaAoTerminar, TituloFocadoAoTerminar, JogoAtivo
     static UltimaExecucao := A_Now
+
+    VerificarModoJogo() ; (NOVO) Checa rapidamente o status a cada segundo
+
+    if (JogoAtivo)
+        return ; Se o modo de jogo estiver ativo, o motor congela sem consumir CPU.
 
     if (DateDiff(A_Now, UltimaExecucao, "Seconds") > 10) {
         ReiniciarCiclo() 
@@ -241,7 +273,6 @@ EncerrarPausa() {
     SalvarEstado()
 }
 
-; Função wrapper para o botão (poderia adicionar log de "trapaça" aqui no futuro)
 PularPausaManual(*) {
     EncerrarPausa()
 }
@@ -309,16 +340,15 @@ MostrarMenu(*) {
 }
 
 ; ==============================================================================
-; CONTROLES DE POSIÇÃO (NOVO)
+; CONTROLES DE POSIÇÃO
 ; ==============================================================================
 ArrastarJanela(*) {
-    PostMessage 0xA1, 2 ; Engana o Windows: "Estou clicando na barra de título"
+    PostMessage 0xA1, 2 
 }
 
-; Atalho ALT + V para resetar posição
 !v:: {
     try {
         GuiVerde.Move(X_Verde, Y_Verde)
-        SoundBeep 750, 100 ; Bip de confirmação
+        SoundBeep 750, 100 
     }
 }
